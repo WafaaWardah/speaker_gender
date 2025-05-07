@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import t, shapiro, wilcoxon
 
-raw_data_path = "/Users/wafaa/TubCloud/Conferences/etsi-2025/gender_code/analysis-29Apr25/NISQA_TEST_LIVETALK_listening_test_ratings.csv"
+raw_data_path = "./NISQA_TEST_LIVETALK_listening_test_ratings.csv"
 raw_df = pd.read_csv(raw_data_path, sep=";", encoding="latin-1")
 raw_df.rename(columns={'Condition': 'File'}, inplace=True)
 
