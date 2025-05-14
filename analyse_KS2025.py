@@ -6,13 +6,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import t, shapiro, wilcoxon
 
-raw_data_path = "./NISQA_TEST_LIVETALK_listening_test_ratings.csv"
-raw_df = pd.read_csv(raw_data_path, sep=";", encoding="latin-1")
-raw_df.rename(columns={'Condition': 'File'}, inplace=True)
-
+raw_data_path = "./KS2025raw.csv"
+raw_df = pd.read_csv(raw_data_path, sep="|", encoding="latin-1")
+raw_df.rename(columns={'ID': 'File'}, inplace=True)
 raw_df
-# %%
 
+
+# %%
 def prep_raw_data(raw_df, dim):
     unique_files = raw_df['File'].unique()
     df = pd.DataFrame({'File': unique_files})
@@ -20,42 +20,17 @@ def prep_raw_data(raw_df, dim):
     result_df = df.merge(pivot_df, on='File', how='left')
 
     female_raw_df, male_raw_df = [
-        result_df[result_df['File'].str.contains(gender, na=False)].sort_values(by='File').reset_index(drop=True)
-        for gender in ['f', 'm']
+        result_df[result_df['File'].str[11] == gender].sort_values(by='File').reset_index(drop=True)
+        for gender in ['w', 'm']
     ]
-
-    female_raw_df['File'] = female_raw_df['File'].str[:3]
-    male_raw_df['File'] = male_raw_df['File'].str[:3]
-
-    female_raw_df = female_raw_df.groupby('File').agg(list).reset_index()
-    male_raw_df = male_raw_df.groupby('File').agg(list).reset_index()
-
-    cols_to_split = list(range(1, 25))  # Integers 1 to 24
-
-    # For FEMALE
-    for col in cols_to_split:
-        split_cols = pd.DataFrame(female_raw_df[col].tolist(), index=female_raw_df.index)
-        split_cols.columns = [f"{col}_1", f"{col}_2"]
-        female_raw_df[[f"{col}_1", f"{col}_2"]] = split_cols
-
-    female_raw_df.drop(columns=cols_to_split, inplace=True)
-
-    # For MALE
-    for col in cols_to_split:
-        split_cols = pd.DataFrame(male_raw_df[col].tolist(), index=male_raw_df.index)
-        split_cols.columns = [f"{col}_1", f"{col}_2"]
-        male_raw_df[[f"{col}_1", f"{col}_2"]] = split_cols
-
-    male_raw_df.drop(columns=cols_to_split, inplace=True)
-
     return female_raw_df, male_raw_df
 
-female_raw_qoe_df, male_raw_qoe_df = prep_raw_data(raw_df, 'QOE')
-female_raw_noi_df, male_raw_noi_df = prep_raw_data(raw_df, 'NOI')
-female_raw_col_df, male_raw_col_df = prep_raw_data(raw_df, 'COL')
-female_raw_dis_df, male_raw_dis_df = prep_raw_data(raw_df, 'DIS')
-female_raw_lou_df, male_raw_lou_df = prep_raw_data(raw_df, 'LOU')
-female_raw_noi_df
+female_raw_qoe_df, male_raw_qoe_df = prep_raw_data(raw_df, 'MOS')
+female_raw_noi_df, male_raw_noi_df = prep_raw_data(raw_df, 'Noisiness')
+female_raw_col_df, male_raw_col_df = prep_raw_data(raw_df, 'Coloration')
+female_raw_dis_df, male_raw_dis_df = prep_raw_data(raw_df, 'Discontinuity')
+female_raw_lou_df, male_raw_lou_df = prep_raw_data(raw_df, 'Loudness')
+female_raw_qoe_df
 # %%
 # Plot female vs male speaker rating distributions across the dimensions
 def plot_distributions(f_df, m_df, dim):
@@ -77,19 +52,21 @@ def plot_distributions(f_df, m_df, dim):
     plt.show()
 
 plot_distributions(female_raw_qoe_df, male_raw_qoe_df, 'QOE')
-plot_distributions(female_raw_noi_df, male_raw_noi_df, 'NOI')
-plot_distributions(female_raw_col_df, male_raw_col_df, 'COL')
-plot_distributions(female_raw_dis_df, male_raw_dis_df, 'DIS')
-plot_distributions(female_raw_lou_df, male_raw_lou_df, 'LOU')
+plot_distributions(female_raw_noi_df, male_raw_noi_df, 'Noisiness')
+plot_distributions(female_raw_col_df, male_raw_col_df, 'Coloration')
+plot_distributions(female_raw_dis_df, male_raw_dis_df, 'Discontinuity')
+plot_distributions(female_raw_lou_df, male_raw_lou_df, 'Loudness')
+
+# %%
 
 def plot_scatter_conditions(f_df, m_df, dim):
-    # Extract conditions (c01 to c58) and their corresponding mean ratings
+    # Extract conditions (c01 to c60) and their corresponding mean ratings
     f_conditions = f_df['File']
     m_conditions = m_df['File']
     f_means = f_df.drop(columns='File').mean(axis=1)
     m_means = m_df.drop(columns='File').mean(axis=1)
 
-    plt.figure(figsize=(8, 7))
+    plt.figure(figsize=(10, 6))
     plt.scatter(f_means, m_means, alpha=0.7, color='blue', edgecolor='black')
 
     f_sems = f_df.drop(columns='File').std(axis=1) / np.sqrt(48)
@@ -101,7 +78,7 @@ def plot_scatter_conditions(f_df, m_df, dim):
 
     # Annotate points with condition labels
     for f_mean, m_mean, condition in zip(f_means, m_means, f_conditions):
-        plt.text(f_mean, m_mean, condition, fontsize=8, ha='right', va='bottom')
+        plt.text(f_mean, m_mean, condition[4:6], fontsize=8, ha='right', va='bottom')
 
     plt.title(f"{dim} Ratings by Condition (Female vs Male)", fontsize=16)
     plt.xlabel(f"Female {dim} Mean Rating", fontsize=14)
@@ -176,31 +153,6 @@ analysis_dis = analyse(male_raw_dis_df, female_raw_dis_df)
 analysis_lou = analyse(male_raw_lou_df, female_raw_lou_df)
 
 analysis_qoe
-
-# %%
-
-def plot_scatter_diff_conditions(df, dim):
-    # Extract conditions dmos (c01 to c58)
-   
-    plt.figure(figsize=(8, 7))
-    plt.axline((1,1), slope=1, color='red', linestyle='--', label='y=x')
-    plt.scatter(df['dmos_f_CuTi'], df['dmos_m_CuTi'], alpha=0.7, color='blue', edgecolor='black', label='Condition Difference (reference - condition)')
-    plt.xlim(-0.5, 3.6)
-    plt.ylim(-0.5, 3.6)
-    plt.title(f"{dim} Difference per Condition", fontsize=16)
-    plt.xlabel(f"Female {dim} Rating Difference", fontsize=14)
-    plt.ylabel(f"Male {dim} Rating Difference", fontsize=14)
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-plot_scatter_diff_conditions(analysis_qoe, 'QOE')
-plot_scatter_diff_conditions(analysis_noi, 'NOI')
-plot_scatter_diff_conditions(analysis_col, 'COL')
-plot_scatter_diff_conditions(analysis_dis, 'DIS')
-plot_scatter_diff_conditions(analysis_lou, 'LOU')
-
 # %%
 # Conclusions according to the ETSI analysis
 '''def conclusions(df, dim):
@@ -248,17 +200,18 @@ def conclusions(df, dim):
     else:
         print("→ Significant gender-related difference detected.\n")
 
-conclusions(analysis_qoe, 'QOE')
-conclusions(analysis_noi, 'NOI')
-conclusions(analysis_col, 'COL')
-conclusions(analysis_dis, 'DIS')
-conclusions(analysis_lou, 'LOU')
+conclusions(analysis_qoe, 'MOE')
+conclusions(analysis_noi, 'Noisiness')
+conclusions(analysis_col, 'Coloration')
+conclusions(analysis_dis, 'Discontinuity')
+conclusions(analysis_lou, 'Loudness')
 
 # %%
-# Plot scatter plot of all conditions from c02 to c58 for corecon_t_test values under 0.1
+# Plot scatter plot of all conditions from c02 to c60 for corecon_t_test values under 0.1
+len = len(analysis_qoe)
 
 # Step 1: Create full condition order
-x_order = [f"c{str(i).zfill(2)}" for i in range(2, 59)]
+x_order = [f"c{str(i).zfill(2)}" for i in range(2, len)]
 condition_pos = {cond: idx for idx, cond in enumerate(x_order)}
 
 # Step 2: Gather and organize all significant points
@@ -284,9 +237,11 @@ for label in ['QOE', 'NOI', 'COL', 'DIS', 'LOU']:
 # Step 4: Set fixed tick positions and labels
 plt.xticks(ticks=range(len(x_order)), labels=x_order, rotation=90, fontsize=9)
 plt.title("Conditions with p-value < 0.05 by Dimension", fontsize=16)
-plt.xlabel("Conditions (c02 to c58)", fontsize=14)
+plt.xlabel("Conditions (c02 to c60)", fontsize=14)
 plt.ylabel("T-test p-value", fontsize=14)
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
+# %%
